@@ -4,6 +4,8 @@ from enum import Enum
 import logging
 import time
 
+from auth.auth_service import get_secret
+
 logger = logging.getLogger(__name__)
 
 class ModelTier(Enum):
@@ -52,7 +54,11 @@ class ModelManager:
     def _initialize_clients(self):
         """Initialize API clients for each provider."""
         try:
-            self.clients["groq"] = groq.Groq(api_key=st.secrets["GROQ_API_KEY"])
+            groq_api_key = get_secret("GROQ_API_KEY")
+            if not groq_api_key:
+                logger.warning("GROQ_API_KEY is missing. Configuration is incomplete.")
+                return
+            self.clients["groq"] = groq.Groq(api_key=groq_api_key)
         except Exception as e:
             logger.error(f"Failed to initialize Groq client: {str(e)}")
 

@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from supabase import create_client
 from datetime import datetime
@@ -5,17 +6,60 @@ import time
 import re
 
 
+def get_secret(key, default=None):
+    """Resolve a secret from Streamlit secrets or the environment."""
+    try:
+        if hasattr(st, "secrets"):
+            value = st.secrets.get(key)
+            if value not in (None, ""):
+                return value
+    except Exception:
+        pass
+
+    value = os.getenv(key)
+    if value not in (None, ""):
+        return value
+
+    return default
+
+
+def get_supabase_config():
+    """Return the configured Supabase credentials from secrets or environment."""
+    supabase_url = get_secret("SUPABASE_URL")
+    supabase_key = get_secret("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        return None, None
+
+    return supabase_url, supabase_key
+
+
 class AuthService:
     def __init__(self):
+        self.supabase = None
+        self.configured = False
+
+        supabase_url, supabase_key = get_supabase_config()
+        if not supabase_url or not supabase_key:
+            st.session_state.supabase_config_error = (
+                "Supabase is not configured. Add SUPABASE_URL and SUPABASE_KEY "
+                "to .streamlit/secrets.toml."
+            )
+            return
+
+        self.configured = True
+
         try:
             # Initialize Supabase client directly
             # This ensures a fresh client for each session, preventing state leakage
-            self.supabase = create_client(
-                st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"]
-            )
+            self.supabase = create_client(supabase_url, supabase_key)
         except Exception as e:
-            st.error(f"Failed to initialize services: {str(e)}")
-            raise e
+            st.session_state.supabase_config_error = (
+                f"Failed to initialize Supabase client: {str(e)}"
+            )
+            self.configured = False
+            st.error(st.session_state.supabase_config_error)
+            return
 
         # Try to restore session from Supabase if no current session
         self.try_restore_session()

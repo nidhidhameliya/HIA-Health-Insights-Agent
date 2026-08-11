@@ -12,11 +12,18 @@ class SessionManager:
             st.session_state.session_initialized = True
             # Try to restore session from persistent storage
             SessionManager._restore_from_storage()
-            
+
         if 'auth_service' not in st.session_state:
             from auth.auth_service import AuthService
             st.session_state.auth_service = AuthService()
-        
+
+        if not getattr(st.session_state.auth_service, 'configured', False):
+            st.session_state.auth_error = st.session_state.get(
+                'supabase_config_error',
+                'Supabase is not configured. Please add the required secrets.'
+            )
+            return
+
         # Check session timeout
         if 'last_activity' in st.session_state:
             idle_time = datetime.now() - st.session_state.last_activity
@@ -24,10 +31,10 @@ class SessionManager:
                 SessionManager.clear_session_state()
                 st.error("Session expired. Please log in again.")
                 st.rerun()
-        
+
         # Update last activity
         st.session_state.last_activity = datetime.now()
-        
+
         # Validate token and user data
         if 'user' in st.session_state:
             user_data = st.session_state.auth_service.validate_session_token()

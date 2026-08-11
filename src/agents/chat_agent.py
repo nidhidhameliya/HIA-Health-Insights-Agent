@@ -5,6 +5,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 import os
 
+from auth.auth_service import get_secret
+
 
 class ChatAgent:
     def __init__(self):
@@ -12,7 +14,10 @@ class ChatAgent:
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, chunk_overlap=200
         )
-        self.client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        groq_api_key = get_secret("GROQ_API_KEY")
+        if not groq_api_key:
+            raise ValueError("GROQ_API_KEY is missing. Add it to Streamlit secrets or set the environment variable.")
+        self.client = Groq(api_key=groq_api_key)
         self.model_name = "llama-3.3-70b-versatile"
 
     def initialize_vector_store(self, text_content):
